@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chess · MindCare</title>
+  <link href="./src/output.css" rel="stylesheet">
+</head>
+<body class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+  <main class="min-h-screen flex flex-col items-center justify-center px-4 py-8">
+    <div class="w-full max-w-2xl flex flex-col items-center gap-6">
+      <div class="text-center">
+        <h2 class="text-3xl md:text-4xl font-bold text-slate-800 mb-2 flex items-center justify-center gap-3">
+          <span class="text-4xl md:text-5xl">♞</span>
+          Chess
+        </h2>
+        <p class="text-slate-500">Take turns and capture the opponent's king.</p>
+      </div>
+
+      <div id="statusBar" class="w-full flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 rounded-2xl bg-white shadow-lg shadow-slate-200/60 border border-slate-100">
+        <div class="flex items-center gap-3">
+          <div id="turnDot" class="w-5 h-5 rounded-full bg-white ring-2 ring-slate-300 shadow-inner transition-colors"></div>
+          <div>
+            <p class="text-xs text-slate-400 font-medium uppercase tracking-wide">Current Turn</p>
+            <p id="turnText" class="text-lg font-bold text-slate-800">White</p>
+          </div>
+        </div>
+        <div id="statusText" class="text-center sm:text-right">
+          <p class="text-sm text-slate-500">Game in progress</p>
+        </div>
+      </div>
+
+      <div class="relative w-full flex justify-center">
+        <div id="boardContainer" class="relative rounded-2xl sm:rounded-3xl p-2 sm:p-3 md:p-4 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 shadow-2xl shadow-slate-900/40 ring-4 ring-slate-950">
+          <div id="board" class="grid grid-cols-8 grid-rows-8 aspect-square w-[min(85vw,85vh,560px)] rounded-lg sm:rounded-xl overflow-hidden bg-black border-2 border-slate-950"></div>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap gap-3 justify-center">
+        <button id="newGameBtn" class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-br from-indigo-600 to-blue-600 text-white font-semibold shadow-lg shadow-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/40 hover:-translate-y-0.5 active:translate-y-0 transition-all">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+          </svg>
+          New Game
+        </button>
+      </div>
+
+      <div class="w-full max-w-md text-center px-4">
+        <p class="text-xs text-slate-400 leading-relaxed">
+          💡 Tip: Click a piece to see where it can move (green dots). Click again to deselect. Opponent pieces highlighted in red can be captured.
+        </p>
+      </div>
+    </div>
+  </main>
+
+  <div id="gameOverModal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+    <div class="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center border border-slate-100">
+      <div id="modalIcon" class="text-6xl mb-4">♚</div>
+      <h3 id="modalTitle" class="text-2xl font-bold text-slate-800 mb-2">Game Over</h3>
+      <p id="modalMessage" class="text-slate-500 mb-6">Checkmate!</p>
+      <button id="modalPlayAgain" class="w-full inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-br from-indigo-600 to-blue-600 text-white font-semibold shadow-lg shadow-indigo-500/30 hover:shadow-xl transition">
+        Play Again
+      </button>
+    </div>
+  </div>
+
+  <script src="./src/chess.js"></script>
+</body>
+</html>
