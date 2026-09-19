@@ -1,1 +1,35 @@
 @import "tailwindcss";
+
+@layer utilities {
+  /* ===== DEMENTIA-FRIENDLY PIECE OUTLINES (Chess) ===== */
+  .piece-outline-dark {
+    --tw-drop-shadow:
+      drop-shadow(-0.6px -0.6px 0 #0f172a)
+      drop-shadow(0.6px -0.6px 0 #0f172a)
+      drop-shadow(-0.6px  0.6px 0 #0f172a)
+      drop-shadow(0.6px  0.6px 0 #0f172a)
+      drop-shadow(0 1.5px 1.5px rgba(0,0,0,0.55));
+    filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
+    text-shadow:
+     -0.5px -0.5px 0 #020617,
+      0.5px -0.5px 0 #020617,
+     -0.5px  0.5px 0 #020617,
+      0.5px  0.5px 0 #020617,
+      0 2px 3px rgba(0,0,0,0.7);
+  }
+  .piece-outline-light {
+    --tw-drop-shadow:
+      drop-shadow(-0.6px -0.6px 0 #ffffff)
+      drop-shadow(0.6px -0.6px 0 #ffffff)
+      drop-shadow(-0.6px  0.6px 0 #ffffff)
+      drop-shadow(0.6px  0.6px 0 #ffffff)
+      drop-shadow(0 1px 1px rgba(0,0,0,0.25));
+    filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
+    text-shadow:
+     -0.5px -0.5px 0 #ffffff,
+      0.5px -0.5px 0 #ffffff,
+     -0.5px  0.5px 0 #ffffff,
+      0.5px  0.5px 0 #ffffff,
+      0 1px 1px rgba(255,255,255,0.5);
+  }
+}

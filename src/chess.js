@@ -8,6 +8,13 @@
 
   const PIECE_VALUES = { 'P': 1, 'N': 3, 'B': 3, 'R': 5, 'Q': 9, 'K': 0 };
 
+  const HUMAN_COLOR = 'w';
+  const COMPUTER_COLOR = 'b';
+  const COMPUTER_DELAY_MS = 500;
+  const MAX_SEARCH_DEPTH = 3;
+  const THINK_TIME_BUDGET_MS = 400;
+  const MATE_SCORE = 1000000;
+
   let board = [];
   let currentPlayer = 'w';
   let selectedSquare = null;
@@ -15,18 +22,20 @@
   let gameOver = false;
   let castlingRights = { wK: true, wQ: true, bK: true, bQ: true };
   let enPassantTarget = null;
-  let halfmoveClock = 0;
+  let isComputerThinking = false;
+  let computerTimerId = null;
 
-  const boardEl = document.getElementById('board');
-  const turnDotEl = document.getElementById('turnDot');
-  const turnTextEl = document.getElementById('turnText');
-  const statusTextEl = document.getElementById('statusText');
-  const newGameBtn = document.getElementById('newGameBtn');
-  const gameOverModal = document.getElementById('gameOverModal');
-  const modalIconEl = document.getElementById('modalIcon');
-  const modalTitleEl = document.getElementById('modalTitle');
-  const modalMessageEl = document.getElementById('modalMessage');
-  const modalPlayAgain = document.getElementById('modalPlayAgain');
+  let boardEl;
+  let boardContainerEl;
+  let turnDotEl;
+  let turnTextEl;
+  let statusTextEl;
+  let newGameBtn;
+  let gameOverModal;
+  let modalIconEl;
+  let modalTitleEl;
+  let modalMessageEl;
+  let modalPlayAgain;
 
   function initialBoard() {
     return [
@@ -307,6 +316,22 @@
     return isSquareAttacked(b, king.r, king.c, enemy);
   }
 
+  function getLegalMovesForState(b, color, cr, ep) {
+    const all = [];
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        const p = b[r][c];
+        if (!p || pieceColor(p) !== color) continue;
+        const pseudo = generatePseudoMoves(b, r, c, cr, ep);
+        for (const m of pseudo) {
+          const { board: nb } = applyMove(b, m, cr, ep);
+          if (!isInCheck(nb, color)) all.push(m);
+        }
+      }
+    }
+    return all;
+  }
+
   function getLegalMoves(r, c) {
     const piece = board[r][c];
     if (!piece || pieceColor(piece) !== currentPlayer) return [];
@@ -322,19 +347,7 @@
   }
 
   function getAllLegalMoves(color) {
-    const all = [];
-    for (let r = 0; r < 8; r++) {
-      for (let c = 0; c < 8; c++) {
-        const p = board[r][c];
-        if (!p || pieceColor(p) !== color) continue;
-        const pseudo = generatePseudoMoves(board, r, c, castlingRights, enPassantTarget);
-        for (const m of pseudo) {
-          const { board: nb } = applyMove(board, m, castlingRights, enPassantTarget);
-          if (!isInCheck(nb, color)) all.push(m);
-        }
-      }
-    }
-    return all;
+    return getLegalMovesForState(board, color, castlingRights, enPassantTarget);
   }
 
   function createBoard() {
@@ -408,7 +421,7 @@
       }
     }
 
-    if (isInCheck(board, currentPlayer)) {
+    if (isInCheck(board, currentPlayer) && !gameOver) {
       const king = findKing(board, currentPlayer);
       if (king) {
         const idx = king.r * 8 + king.c;
@@ -423,35 +436,44 @@
   }
 
   function updateStatusUI() {
-    const isWhite = currentPlayer === 'w';
-    turnDotEl.style.background = isWhite ? '#ffffff' : '#1e293b';
+    const isHumanTurn = currentPlayer === HUMAN_COLOR;
+    turnDotEl.style.background = isHumanTurn ? '#ffffff' : '#1e293b';
     turnDotEl.classList.toggle('ring-slate-300', true);
-    turnDotEl.style.boxShadow = isWhite
+    turnDotEl.style.boxShadow = isHumanTurn
       ? 'inset 0 1px 2px rgba(0,0,0,0.2), 0 0 0 2px #cbd5e1'
       : 'inset 0 1px 2px rgba(255,255,255,0.15), 0 0 0 2px #cbd5e1';
-    turnTextEl.textContent = isWhite ? 'White' : 'Black';
+    turnTextEl.textContent = isHumanTurn ? 'You' : 'Computer';
+
+    if (gameOver) return;
+
+    let html = '';
+    if (isComputerThinking) {
+      html = `<p class="text-sm font-semibold text-indigo-600 animate-pulse">Computer is thinking...</p>`;
+      statusTextEl.innerHTML = html;
+      return;
+    }
 
     const inCheck = isInCheck(board, currentPlayer);
     const allMoves = getAllLegalMoves(currentPlayer);
     const hasMoves = allMoves.length > 0;
-
-    let html = '';
-    if (gameOver) return;
 
     if (!hasMoves && inCheck) {
       html = `<p class="text-sm font-semibold text-rose-600">Checkmate!</p>`;
     } else if (!hasMoves) {
       html = `<p class="text-sm font-semibold text-amber-600">Stalemate</p>`;
     } else if (inCheck) {
-      html = `<p class="text-sm font-semibold text-rose-500">⚠ Check!</p>`;
+      html = `<p class="text-sm font-semibold text-rose-500">⚠ Check! · ${isHumanTurn ? 'Your turn' : "Computer's turn"}</p>`;
+    } else if (isHumanTurn) {
+      html = `<p class="text-sm text-slate-500">Your turn</p>`;
     } else {
-      html = `<p class="text-sm text-slate-500">Game in progress</p>`;
+      html = `<p class="text-sm text-slate-500">Computer's turn</p>`;
     }
     statusTextEl.innerHTML = html;
   }
 
   function onCellClick(e) {
-    if (gameOver) return;
+    if (gameOver || isComputerThinking) return;
+    if (currentPlayer !== HUMAN_COLOR) return;
     const cell = e.currentTarget;
     const r = parseInt(cell.dataset.row, 10);
     const c = parseInt(cell.dataset.col, 10);
@@ -495,41 +517,47 @@
     castlingRights = result.castlingRights;
     enPassantTarget = result.enPassant;
 
-    const movingPiece = board[move.toR][move.toC];
-    const captured = move.enPassant ? 'P' : pieceType(board[move.toR][move.toC]);
-    if (pieceType(movingPiece) === 'P' || captured) {
-      halfmoveClock = 0;
-    } else {
-      halfmoveClock++;
-    }
-
     currentPlayer = currentPlayer === 'w' ? 'b' : 'w';
     selectedSquare = null;
     legalMovesCache = [];
     renderBoard();
 
     const inCheck = isInCheck(board, currentPlayer);
-    const allMoves = getAllLegalMoves(currentPlayer);
+    const hasMoves = getAllLegalMoves(currentPlayer).length > 0;
 
-    if (allMoves.length === 0) {
+    if (!hasMoves) {
       gameOver = true;
-      if (inCheck) {
-        showGameOver('checkmate');
-      } else {
-        showGameOver('stalemate');
+      isComputerThinking = false;
+      if (computerTimerId) {
+        clearTimeout(computerTimerId);
+        computerTimerId = null;
       }
+      setBoardInteractive(true);
+      showGameOver(inCheck ? 'checkmate' : 'stalemate');
+      return;
     }
+
+    if (currentPlayer === COMPUTER_COLOR) {
+      scheduleComputerTurn();
+    }
+  }
+
+  function setBoardInteractive(interactive) {
+    boardContainerEl.style.pointerEvents = interactive ? '' : 'none';
   }
 
   function showGameOver(type) {
     gameOverModal.classList.remove('hidden');
     gameOverModal.classList.add('flex');
     if (type === 'checkmate') {
-      const winner = currentPlayer === 'w' ? 'Black' : 'White';
-      modalIconEl.textContent = currentPlayer === 'w' ? '♚' : '♔';
+      const winnerColor = currentPlayer === 'w' ? 'b' : 'w';
+      const winnerLabel = winnerColor === HUMAN_COLOR ? 'You' : 'Computer';
+      modalIconEl.textContent = winnerColor === 'w' ? '♔' : '♚';
       modalTitleEl.textContent = 'Checkmate!';
-      modalMessageEl.textContent = `${winner} wins the game.`;
-      statusTextEl.innerHTML = `<p class="text-sm font-bold text-rose-600">🏆 ${winner} wins!</p>`;
+      modalMessageEl.textContent = winnerLabel === 'You'
+        ? 'You win the game!'
+        : 'Computer wins the game.';
+      statusTextEl.innerHTML = `<p class="text-sm font-bold text-rose-600">🏆 ${winnerLabel} ${winnerLabel === 'You' ? 'win' : 'wins'}!</p>`;
     } else {
       modalIconEl.textContent = '🤝';
       modalTitleEl.textContent = 'Stalemate';
@@ -544,20 +572,257 @@
   }
 
   function resetGame() {
+    if (computerTimerId) {
+      clearTimeout(computerTimerId);
+      computerTimerId = null;
+    }
+    isComputerThinking = false;
     board = initialBoard();
-    currentPlayer = 'w';
+    currentPlayer = HUMAN_COLOR;
     selectedSquare = null;
     legalMovesCache = [];
     gameOver = false;
     castlingRights = { wK: true, wQ: true, bK: true, bQ: true };
     enPassantTarget = null;
-    halfmoveClock = 0;
+    setBoardInteractive(true);
     hideGameOver();
     createBoard();
     renderBoard();
   }
 
+  const PAWN_TABLE = [
+    [0, 0, 0, 0, 0, 0, 0, 0],
+    [50, 50, 50, 50, 50, 50, 50, 50],
+    [10, 10, 20, 30, 30, 20, 10, 10],
+    [5, 5, 10, 25, 25, 10, 5, 5],
+    [0, 0, 0, 20, 20, 0, 0, 0],
+    [5, -5, -10, 0, 0, -10, -5, 5],
+    [5, 10, 10, -20, -20, 10, 10, 5],
+    [0, 0, 0, 0, 0, 0, 0, 0]
+  ];
+
+  const KNIGHT_TABLE = [
+    [-50, -40, -30, -30, -30, -30, -40, -50],
+    [-40, -20, 0, 0, 0, 0, -20, -40],
+    [-30, 0, 10, 15, 15, 10, 0, -30],
+    [-30, 5, 15, 20, 20, 15, 5, -30],
+    [-30, 0, 15, 20, 20, 15, 0, -30],
+    [-30, 5, 10, 15, 15, 10, 5, -30],
+    [-40, -20, 0, 5, 5, 0, -20, -40],
+    [-50, -40, -30, -30, -30, -30, -40, -50]
+  ];
+
+  const BISHOP_TABLE = [
+    [-20, -10, -10, -10, -10, -10, -10, -20],
+    [-10, 0, 0, 0, 0, 0, 0, -10],
+    [-10, 0, 5, 10, 10, 5, 0, -10],
+    [-10, 5, 5, 10, 10, 5, 5, -10],
+    [-10, 0, 10, 10, 10, 10, 0, -10],
+    [-10, 10, 10, 10, 10, 10, 10, -10],
+    [-10, 5, 0, 0, 0, 0, 5, -10],
+    [-20, -10, -10, -10, -10, -10, -10, -20]
+  ];
+
+  const ROOK_TABLE = [
+    [0, 0, 0, 0, 0, 0, 0, 0],
+    [5, 10, 10, 10, 10, 10, 10, 5],
+    [-5, 0, 0, 0, 0, 0, 0, -5],
+    [-5, 0, 0, 0, 0, 0, 0, -5],
+    [-5, 0, 0, 0, 0, 0, 0, -5],
+    [-5, 0, 0, 0, 0, 0, 0, -5],
+    [-5, 0, 0, 0, 0, 0, 0, -5],
+    [0, 0, 0, 5, 5, 0, 0, 0]
+  ];
+
+  const QUEEN_TABLE = [
+    [-20, -10, -10, -5, -5, -10, -10, -20],
+    [-10, 0, 0, 0, 0, 0, 0, -10],
+    [-10, 0, 5, 5, 5, 5, 0, -10],
+    [-5, 0, 5, 5, 5, 5, 0, -5],
+    [0, 0, 5, 5, 5, 5, 0, -5],
+    [-10, 5, 5, 5, 5, 5, 0, -10],
+    [-10, 0, 5, 0, 0, 0, 0, -10],
+    [-20, -10, -10, -5, -5, -10, -10, -20]
+  ];
+
+  const KING_TABLE = [
+    [-30, -40, -40, -50, -50, -40, -40, -30],
+    [-30, -40, -40, -50, -50, -40, -40, -30],
+    [-30, -40, -40, -50, -50, -40, -40, -30],
+    [-30, -40, -40, -50, -50, -40, -40, -30],
+    [-20, -30, -30, -40, -40, -30, -30, -20],
+    [-10, -20, -20, -20, -20, -20, -20, -10],
+    [20, 20, 0, 0, 0, 0, 20, 20],
+    [20, 30, 10, 0, 0, 10, 30, 20]
+  ];
+
+  const PIECE_TABLES = {
+    'P': PAWN_TABLE,
+    'N': KNIGHT_TABLE,
+    'B': BISHOP_TABLE,
+    'R': ROOK_TABLE,
+    'Q': QUEEN_TABLE,
+    'K': KING_TABLE
+  };
+
+  function evaluatePosition(b) {
+    let score = 0;
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        const p = b[r][c];
+        if (!p) continue;
+        const color = pieceColor(p);
+        const row = color === 'w' ? r : 7 - r;
+        const value = PIECE_VALUES[pieceType(p)] * 100 + PIECE_TABLES[pieceType(p)][row][c];
+        score += color === 'w' ? value : -value;
+      }
+    }
+    return score;
+  }
+
+  function moveScore(b, m) {
+    let s = 0;
+    if (m.enPassant) s += 100;
+    const target = b[m.toR][m.toC];
+    if (target) s += 10 + PIECE_VALUES[pieceType(target)] * 10;
+    if (m.promotion) s += 900;
+    return s;
+  }
+
+  function orderMoves(b, moves) {
+    moves.sort((a, x) => moveScore(b, x) - moveScore(b, a));
+  }
+
+  function negamax(b, color, cr, ep, depth, alpha, beta, deadline, ctx) {
+    if (Date.now() > deadline) {
+      ctx.timedOut = true;
+      return 0;
+    }
+    const moves = getLegalMovesForState(b, color, cr, ep);
+    if (moves.length === 0) {
+      return isInCheck(b, color) ? -MATE_SCORE : 0;
+    }
+    if (depth === 0) {
+      const score = evaluatePosition(b);
+      return color === 'w' ? score : -score;
+    }
+    orderMoves(b, moves);
+    const opponent = color === 'w' ? 'b' : 'w';
+    let best = -MATE_SCORE;
+    for (const m of moves) {
+      const st = applyMove(b, m, cr, ep);
+      const score = -negamax(st.board, opponent, st.castlingRights, st.enPassant, depth - 1, -beta, -alpha, deadline, ctx);
+      if (ctx.timedOut) break;
+      if (score > best) best = score;
+      if (best > alpha) alpha = best;
+      if (alpha >= beta) break;
+    }
+    return best;
+  }
+
+  function pickFallbackMove(b, color, cr, ep, moves) {
+    const opponent = color === 'w' ? 'b' : 'w';
+    const sign = color === 'w' ? 1 : -1;
+    const base = evaluatePosition(b) * sign;
+    let best = moves[0];
+    let bestScore = -Infinity;
+    for (const m of moves) {
+      const st = applyMove(b, m, cr, ep);
+      let score = evaluatePosition(st.board) * sign - base;
+      const piece = st.board[m.toR][m.toC];
+      if (piece && pieceType(piece) !== 'K' && isSquareAttacked(st.board, m.toR, m.toC, opponent)) {
+        score -= PIECE_VALUES[pieceType(piece)] * 100;
+      }
+      if (score > bestScore) {
+        bestScore = score;
+        best = m;
+      }
+    }
+    return best;
+  }
+
+  function findComputerMove(b, color, cr, ep, legalMoves) {
+    const deadline = Date.now() + THINK_TIME_BUDGET_MS;
+    const opponent = color === 'w' ? 'b' : 'w';
+    let bestMove = pickFallbackMove(b, color, cr, ep, legalMoves);
+
+    for (let depth = 1; depth <= MAX_SEARCH_DEPTH; depth++) {
+      if (Date.now() > deadline) break;
+      const ctx = { timedOut: false };
+      const candidates = legalMoves.slice();
+      orderMoves(b, candidates);
+      let alpha = -MATE_SCORE;
+      let bestAtDepth = null;
+      for (const m of candidates) {
+        if (Date.now() > deadline) {
+          ctx.timedOut = true;
+          break;
+        }
+        const st = applyMove(b, m, cr, ep);
+        const score = -negamax(
+          st.board, opponent, st.castlingRights, st.enPassant,
+          depth - 1, -MATE_SCORE, -alpha, deadline, ctx
+        );
+        if (ctx.timedOut) break;
+        if (score > alpha) {
+          alpha = score;
+          bestAtDepth = m;
+        }
+      }
+      if (ctx.timedOut) continue;
+      if (bestAtDepth) bestMove = bestAtDepth;
+    }
+    return bestMove;
+  }
+
+  function scheduleComputerTurn() {
+    if (gameOver) return;
+    clearTimeout(computerTimerId);
+    computerTimerId = null;
+    isComputerThinking = true;
+    setBoardInteractive(false);
+    renderBoard();
+    computerTimerId = setTimeout(runComputerTurn, COMPUTER_DELAY_MS);
+  }
+
+  function runComputerTurn() {
+    computerTimerId = null;
+    if (gameOver) {
+      isComputerThinking = false;
+      setBoardInteractive(true);
+      return;
+    }
+    if (currentPlayer !== COMPUTER_COLOR) {
+      isComputerThinking = false;
+      setBoardInteractive(true);
+      return;
+    }
+    const moves = getLegalMovesForState(board, COMPUTER_COLOR, castlingRights, enPassantTarget);
+    if (moves.length === 0) {
+      isComputerThinking = false;
+      setBoardInteractive(true);
+      gameOver = true;
+      showGameOver(isInCheck(board, COMPUTER_COLOR) ? 'checkmate' : 'stalemate');
+      return;
+    }
+    const move = findComputerMove(board, COMPUTER_COLOR, castlingRights, enPassantTarget, moves);
+    isComputerThinking = false;
+    setBoardInteractive(true);
+    makeMove(move);
+  }
+
   function initializeGame() {
+    boardEl = document.getElementById('board');
+    boardContainerEl = document.getElementById('boardContainer');
+    turnDotEl = document.getElementById('turnDot');
+    turnTextEl = document.getElementById('turnText');
+    statusTextEl = document.getElementById('statusText');
+    newGameBtn = document.getElementById('newGameBtn');
+    gameOverModal = document.getElementById('gameOverModal');
+    modalIconEl = document.getElementById('modalIcon');
+    modalTitleEl = document.getElementById('modalTitle');
+    modalMessageEl = document.getElementById('modalMessage');
+    modalPlayAgain = document.getElementById('modalPlayAgain');
     createBoard();
     resetGame();
     newGameBtn.addEventListener('click', resetGame);
@@ -565,11 +830,41 @@
     gameOverModal.addEventListener('click', (e) => {
       if (e.target === gameOverModal) hideGameOver();
     });
+    window.addEventListener('pagehide', () => {
+      if (computerTimerId) {
+        clearTimeout(computerTimerId);
+        computerTimerId = null;
+      }
+      isComputerThinking = false;
+    });
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeGame);
-  } else {
-    initializeGame();
+  if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initializeGame);
+    } else {
+      initializeGame();
+    }
+  }
+
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+      initialBoard,
+      pieceColor,
+      pieceType,
+      inBounds,
+      cloneBoard,
+      findKing,
+      generatePseudoMoves,
+      isSquareAttacked,
+      generateAttackMovesForPiece,
+      applyMove,
+      isInCheck,
+      getLegalMovesForState,
+      evaluatePosition,
+      negamax,
+      findComputerMove,
+      pickFallbackMove
+    };
   }
 })();
