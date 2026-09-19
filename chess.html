@@ -25,8 +25,11 @@
             <p id="turnText" class="text-lg font-bold text-slate-800">You</p>
           </div>
         </div>
-        <div id="statusText" class="text-center sm:text-right">
-          <p class="text-sm text-slate-500">Game in progress</p>
+        <div class="flex flex-col items-center sm:items-end gap-1">
+          <span id="difficultyPill" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700"></span>
+          <div id="statusText" class="text-center sm:text-right">
+            <p class="text-sm text-slate-500">Game in progress</p>
+          </div>
         </div>
       </div>
 
@@ -42,6 +45,13 @@
             <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
           </svg>
           New Game
+        </button>
+        <button id="changeDifficultyBtn" class="hidden inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-white border-2 border-slate-200 text-slate-600 font-semibold hover:bg-slate-50 hover:border-slate-300 shadow-sm transition-all">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+          </svg>
+          Change Difficulty
         </button>
       </div>
 
@@ -61,6 +71,30 @@
       <button id="modalPlayAgain" class="w-full inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-br from-indigo-600 to-blue-600 text-white font-semibold shadow-lg shadow-indigo-500/30 hover:shadow-xl transition">
         Play Again
       </button>
+      <button id="modalChangeDifficulty" class="w-full mt-3 inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-white border-2 border-slate-200 text-slate-600 font-semibold hover:bg-slate-50 hover:border-slate-300 shadow-sm transition">
+        Change Difficulty
+      </button>
+    </div>
+  </div>
+
+  <div id="difficultyOverlay" class="fixed inset-0 z-[200] hidden items-center justify-center p-4 overflow-y-auto bg-slate-900/70 backdrop-blur-sm">
+    <div class="w-full max-w-md my-auto">
+      <div class="bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-100">
+        <div class="text-center mb-6">
+          <p class="text-5xl mb-2">♞</p>
+          <h3 class="text-2xl sm:text-3xl font-bold text-slate-800">Choose Your Difficulty</h3>
+          <p class="text-slate-500 mt-2 text-sm sm:text-base">Select how challenging you want today's game to be.</p>
+        </div>
+        <div id="difficultyOptions" role="radiogroup" aria-label="Choose difficulty" class="flex flex-col gap-3"></div>
+        <div class="flex flex-col gap-3 mt-6">
+          <button id="difficultyStartBtn" disabled class="w-full inline-flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-gradient-to-br from-indigo-600 to-blue-600 text-white text-lg font-semibold shadow-lg shadow-indigo-500/30 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:shadow-lg focus:outline-none focus-visible:ring-4 focus-visible:ring-indigo-300">
+            Start Game
+          </button>
+          <button id="difficultyBackBtn" class="w-full inline-flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-white border-2 border-slate-200 text-slate-600 text-lg font-semibold hover:bg-slate-50 hover:border-slate-300 transition-all focus:outline-none focus-visible:ring-4 focus-visible:ring-indigo-300">
+            Back
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 

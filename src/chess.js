@@ -10,10 +10,44 @@
 
   const HUMAN_COLOR = 'w';
   const COMPUTER_COLOR = 'b';
-  const COMPUTER_DELAY_MS = 500;
-  const MAX_SEARCH_DEPTH = 3;
-  const THINK_TIME_BUDGET_MS = 400;
   const MATE_SCORE = 1000000;
+  const DEFAULT_DIFFICULTY = 'normal';
+
+  const DIFFICULTY_OPTIONS = [
+    { id: 'easy', icon: '🌱', title: 'Easy', description: 'Relaxed pace, simpler game' },
+    { id: 'normal', icon: '⚖️', title: 'Normal', description: 'Balanced challenge' },
+    { id: 'hard', icon: '🏆', title: 'Hard', description: 'More challenging game' }
+  ];
+
+  const DIFFICULTY_CONFIG = {
+    easy: {
+      label: 'Easy',
+      maxSearchDepth: 1,
+      thinkTimeBudgetMs: 250,
+      mistakeChance: 0.35,
+      computerDelayMs: 650
+    },
+    normal: {
+      label: 'Normal',
+      maxSearchDepth: 3,
+      thinkTimeBudgetMs: 400,
+      mistakeChance: 0.05,
+      computerDelayMs: 500
+    },
+    hard: {
+      label: 'Hard',
+      maxSearchDepth: 4,
+      thinkTimeBudgetMs: 1500,
+      mistakeChance: 0,
+      computerDelayMs: 350
+    }
+  };
+
+  const DIFFICULTY_PILL_CLASSES = {
+    easy: 'bg-emerald-100 text-emerald-700',
+    normal: 'bg-amber-100 text-amber-700',
+    hard: 'bg-rose-100 text-rose-700'
+  };
 
   let board = [];
   let currentPlayer = 'w';
@@ -24,6 +58,11 @@
   let enPassantTarget = null;
   let isComputerThinking = false;
   let computerTimerId = null;
+  let currentDifficulty = DEFAULT_DIFFICULTY;
+  let pendingDifficulty = null;
+  let gameSession = null;
+  let overlayOpenedInGame = false;
+  let lastGameEndType = null;
 
   let boardEl;
   let boardContainerEl;
@@ -36,6 +75,15 @@
   let modalTitleEl;
   let modalMessageEl;
   let modalPlayAgain;
+  let modalChangeDifficulty;
+  let difficultyOverlayEl;
+  let difficultyOptionsWrap;
+  let difficultyStartBtn;
+  let difficultyBackBtn;
+  let difficultyChangeBtn;
+  let difficultyPillEl;
+
+  let difficultyOptionEls = [];
 
   function initialBoard() {
     return [
@@ -58,6 +106,10 @@
   function pieceType(piece) {
     if (!piece) return null;
     return piece[1];
+  }
+
+  function difficultyConfig() {
+    return DIFFICULTY_CONFIG[currentDifficulty] || DIFFICULTY_CONFIG[DEFAULT_DIFFICULTY];
   }
 
   function inBounds(r, c) {
@@ -547,6 +599,7 @@
   }
 
   function showGameOver(type) {
+    lastGameEndType = type;
     gameOverModal.classList.remove('hidden');
     gameOverModal.classList.add('flex');
     if (type === 'checkmate') {
@@ -582,6 +635,7 @@
     selectedSquare = null;
     legalMovesCache = [];
     gameOver = false;
+    lastGameEndType = null;
     castlingRights = { wK: true, wQ: true, bK: true, bQ: true };
     enPassantTarget = null;
     setBoardInteractive(true);
@@ -742,11 +796,12 @@
   }
 
   function findComputerMove(b, color, cr, ep, legalMoves) {
-    const deadline = Date.now() + THINK_TIME_BUDGET_MS;
+    const cfg = difficultyConfig();
+    const deadline = Date.now() + cfg.thinkTimeBudgetMs;
     const opponent = color === 'w' ? 'b' : 'w';
     let bestMove = pickFallbackMove(b, color, cr, ep, legalMoves);
 
-    for (let depth = 1; depth <= MAX_SEARCH_DEPTH; depth++) {
+    for (let depth = 1; depth <= cfg.maxSearchDepth; depth++) {
       if (Date.now() > deadline) break;
       const ctx = { timedOut: false };
       const candidates = legalMoves.slice();
@@ -772,6 +827,10 @@
       if (ctx.timedOut) continue;
       if (bestAtDepth) bestMove = bestAtDepth;
     }
+
+    if (cfg.mistakeChance > 0 && Math.random() < cfg.mistakeChance) {
+      return legalMoves[Math.floor(Math.random() * legalMoves.length)];
+    }
     return bestMove;
   }
 
@@ -782,7 +841,7 @@
     isComputerThinking = true;
     setBoardInteractive(false);
     renderBoard();
-    computerTimerId = setTimeout(runComputerTurn, COMPUTER_DELAY_MS);
+    computerTimerId = setTimeout(runComputerTurn, difficultyConfig().computerDelayMs);
   }
 
   function runComputerTurn() {
@@ -823,10 +882,26 @@
     modalTitleEl = document.getElementById('modalTitle');
     modalMessageEl = document.getElementById('modalMessage');
     modalPlayAgain = document.getElementById('modalPlayAgain');
-    createBoard();
-    resetGame();
+    modalChangeDifficulty = document.getElementById('modalChangeDifficulty');
+    difficultyOverlayEl = document.getElementById('difficultyOverlay');
+    difficultyOptionsWrap = document.getElementById('difficultyOptions');
+    difficultyStartBtn = document.getElementById('difficultyStartBtn');
+    difficultyBackBtn = document.getElementById('difficultyBackBtn');
+    difficultyChangeBtn = document.getElementById('changeDifficultyBtn');
+    difficultyPillEl = document.getElementById('difficultyPill');
+
+    buildDifficultyOptions();
+    bindDifficultyKeys();
+
+    difficultyStartBtn.addEventListener('click', () => beginGame(pendingDifficulty));
+    difficultyBackBtn.addEventListener('click', goBack);
     newGameBtn.addEventListener('click', resetGame);
     modalPlayAgain.addEventListener('click', resetGame);
+    modalChangeDifficulty.addEventListener('click', () => {
+      hideGameOver();
+      openDifficultyOverlay(true, { resume: true });
+    });
+    difficultyChangeBtn.addEventListener('click', () => openDifficultyOverlay(true, { resume: true }));
     gameOverModal.addEventListener('click', (e) => {
       if (e.target === gameOverModal) hideGameOver();
     });
@@ -837,6 +912,126 @@
       }
       isComputerThinking = false;
     });
+
+    updateDifficultyPill();
+    openDifficultyOverlay(false);
+  }
+
+  function buildDifficultyOptions() {
+    DIFFICULTY_OPTIONS.forEach((opt, index) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.dataset.difficulty = opt.id;
+      btn.setAttribute('role', 'radio');
+      btn.setAttribute('aria-checked', 'false');
+      btn.setAttribute('aria-label', opt.title + ' — ' + opt.description);
+      btn.className = [
+        'group flex items-center w-full gap-4 px-4 sm:px-5 py-4 rounded-2xl border-2 border-slate-200',
+        'bg-white text-left cursor-pointer transition-all hover:border-indigo-300',
+        'focus:outline-none focus-visible:ring-4 focus-visible:ring-indigo-300'
+      ].join(' ');
+      btn.innerHTML =
+        '<span class="iconBox flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center text-2xl bg-slate-100 transition-colors">' + opt.icon + '</span>' +
+        '<span class="flex-1 min-w-0">' +
+        '<span class="block text-lg font-bold text-slate-800">' + opt.title + '</span>' +
+        '<span class="block text-sm text-slate-500">' + opt.description + '</span>' +
+        '</span>' +
+        '<span class="check flex-shrink-0 w-7 h-7 rounded-full border-2 border-slate-300 flex items-center justify-center text-white text-sm transition-all">' +
+        '<svg class="checkIcon w-4 h-4 opacity-0 transition-opacity" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>' +
+        '</span>';
+
+      const setSelected = (isSelected) => {
+        btn.setAttribute('aria-checked', isSelected ? 'true' : 'false');
+        btn.classList.toggle('border-indigo-500', isSelected);
+        btn.classList.toggle('bg-indigo-50', isSelected);
+        btn.classList.toggle('ring-4', isSelected);
+        btn.classList.toggle('ring-indigo-100', isSelected);
+        btn.querySelector('.iconBox').classList.toggle('bg-indigo-100', isSelected);
+        btn.querySelector('.check').classList.toggle('bg-indigo-500', isSelected);
+        btn.querySelector('.check').classList.toggle('border-indigo-500', isSelected);
+        btn.querySelector('.checkIcon').classList.toggle('opacity-0', !isSelected);
+      };
+
+      btn.addEventListener('click', () => {
+        selectDifficulty(opt.id);
+        difficultyStartBtn.focus();
+      });
+
+      difficultyOptionsWrap.appendChild(btn);
+      difficultyOptionEls.push({ el: btn, id: opt.id, setSelected });
+    });
+  }
+
+  function bindDifficultyKeys() {
+    difficultyOptionsWrap.addEventListener('keydown', (e) => {
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return;
+      const els = difficultyOptionEls;
+      const currentIdx = els.findIndex(o => document.activeElement === o.el);
+      let nextIdx = currentIdx < 0 ? 0 : currentIdx;
+      if (e.key === 'ArrowDown' || e.key === 'ArrowRight') nextIdx = (nextIdx + 1) % els.length;
+      else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') nextIdx = (nextIdx - 1 + els.length) % els.length;
+      else if (e.key === 'Home') nextIdx = 0;
+      else if (e.key === 'End') nextIdx = els.length - 1;
+      e.preventDefault();
+      els[nextIdx].el.focus();
+    });
+  }
+
+  function selectDifficulty(diff) {
+    pendingDifficulty = DIFFICULTY_CONFIG[diff] ? diff : DEFAULT_DIFFICULTY;
+    difficultyOptionEls.forEach(o => o.setSelected(o.id === pendingDifficulty));
+    difficultyStartBtn.disabled = false;
+  }
+
+  function openDifficultyOverlay(prefill, opts) {
+    overlayOpenedInGame = !!(opts && opts.resume);
+    pendingDifficulty = prefill ? currentDifficulty : null;
+    difficultyOptionEls.forEach(o => o.setSelected(!!pendingDifficulty && o.id === pendingDifficulty));
+    difficultyStartBtn.disabled = !pendingDifficulty;
+    difficultyOverlayEl.classList.remove('hidden');
+    difficultyOverlayEl.classList.add('flex');
+    const target = difficultyOptionEls.find(o => o.id === pendingDifficulty) || difficultyOptionEls[0];
+    if (target) target.el.focus();
+  }
+
+  function closeDifficultyOverlay() {
+    difficultyOverlayEl.classList.add('hidden');
+    difficultyOverlayEl.classList.remove('flex');
+  }
+
+  function beginGame(diff) {
+    const normalized = DIFFICULTY_CONFIG[diff] ? diff : DEFAULT_DIFFICULTY;
+    currentDifficulty = normalized;
+    gameSession = { gameId: 'chess', difficulty: normalized };
+    closeDifficultyOverlay();
+    difficultyChangeBtn.classList.remove('hidden');
+    updateDifficultyPill();
+    resetGame();
+  }
+
+  function updateDifficultyPill() {
+    if (!difficultyPillEl) return;
+    const cfg = difficultyConfig();
+    difficultyPillEl.textContent = cfg.label;
+    difficultyPillEl.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ' +
+      (DIFFICULTY_PILL_CLASSES[currentDifficulty] || DIFFICULTY_PILL_CLASSES[DEFAULT_DIFFICULTY]);
+  }
+
+  function goBack() {
+    if (overlayOpenedInGame) {
+      closeDifficultyOverlay();
+      if (gameOver && lastGameEndType) {
+        showGameOver(lastGameEndType);
+      } else {
+        renderBoard();
+      }
+      return;
+    }
+    if (window.history && window.history.length > 1) {
+      window.history.back();
+    } else {
+      window.location.replace('./index.html');
+    }
   }
 
   if (typeof document !== 'undefined') {
