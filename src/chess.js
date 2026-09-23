@@ -56,6 +56,7 @@
   let gameOver = false;
   let castlingRights = { wK: true, wQ: true, bK: true, bQ: true };
   let enPassantTarget = null;
+  let captures = { w: [], b: [] };
   let isComputerThinking = false;
   let computerTimerId = null;
   let currentDifficulty = DEFAULT_DIFFICULTY;
@@ -82,6 +83,10 @@
   let difficultyBackBtn;
   let difficultyChangeBtn;
   let difficultyPillEl;
+
+  let whiteCapturedRowEl;
+  let blackCapturedRowEl;
+  let materialAdvantageTextEl;
 
   let difficultyOptionEls = [];
 
@@ -487,6 +492,61 @@
     updateStatusUI();
   }
 
+  const PIECE_NAMES = { P: 'pawn', N: 'knight', B: 'bishop', R: 'rook', Q: 'queen', K: 'king' };
+
+  function pieceName(piece) {
+    const color = pieceColor(piece) === 'w' ? 'white' : 'black';
+    return color + ' ' + (PIECE_NAMES[pieceType(piece)] || pieceType(piece));
+  }
+
+  function capturedMaterial(color) {
+    return captures[color].reduce((sum, p) => sum + (PIECE_VALUES[pieceType(p)] || 0), 0);
+  }
+
+  function materialAdvantage() {
+    return capturedMaterial('w') - capturedMaterial('b');
+  }
+
+  function renderCapturedRow(list) {
+    if (!list.length) {
+      return '<span class="text-xs text-slate-400">None</span>';
+    }
+    return list.map((p) => {
+      const isWhiteP = pieceColor(p) === 'w';
+      const textColor = isWhiteP ? 'text-white' : 'text-slate-900';
+      const stroke = isWhiteP ? 'piece-outline-dark' : 'piece-outline-light';
+      const name = pieceName(p);
+      return '<span role="img" aria-label="Captured ' + name + '" title="Captured ' + name + '" ' +
+        'class="text-xl sm:text-2xl md:text-3xl select-none ' + textColor + ' ' + stroke + '" style="line-height:1">' +
+        PIECES[p] + '</span>';
+    }).join('');
+  }
+
+  function renderCapturedPanel() {
+    if (!whiteCapturedRowEl || !blackCapturedRowEl || !materialAdvantageTextEl) return;
+
+    whiteCapturedRowEl.innerHTML = renderCapturedRow(captures.w);
+    blackCapturedRowEl.innerHTML = renderCapturedRow(captures.b);
+
+    const whiteMaterial = capturedMaterial('w');
+    const blackMaterial = capturedMaterial('b');
+    const diff = whiteMaterial - blackMaterial;
+
+    let text = 'Even';
+    let aria = 'Material is even.';
+    if (diff > 0) {
+      text = 'White +' + diff;
+      aria = 'White is ahead by ' + diff + ' points.';
+    } else if (diff < 0) {
+      text = 'Black +' + (-diff);
+      aria = 'Black is ahead by ' + (-diff) + ' points.';
+    }
+
+    materialAdvantageTextEl.textContent = text;
+    materialAdvantageTextEl.setAttribute('aria-label',
+      aria + ' White has ' + whiteMaterial + ' points, Black has ' + blackMaterial + ' points.');
+  }
+
   function updateStatusUI() {
     const isHumanTurn = currentPlayer === HUMAN_COLOR;
     turnDotEl.style.background = isHumanTurn ? '#ffffff' : '#1e293b';
@@ -563,16 +623,32 @@
     }
   }
 
+  function resolveCapturedPiece(move) {
+    if (move.enPassant) {
+      return board[move.fromR][move.toC] || null;
+    }
+    const target = board[move.toR][move.toC];
+    if (target && pieceColor(target) !== currentPlayer) return target;
+    return null;
+  }
+
   function makeMove(move) {
+    const capturer = currentPlayer;
+    const captured = resolveCapturedPiece(move);
     const result = applyMove(board, move, castlingRights, enPassantTarget);
     board = result.board;
     castlingRights = result.castlingRights;
     enPassantTarget = result.enPassant;
 
+    if (captured) {
+      captures[capturer].push(captured);
+    }
+
     currentPlayer = currentPlayer === 'w' ? 'b' : 'w';
     selectedSquare = null;
     legalMovesCache = [];
     renderBoard();
+    renderCapturedPanel();
 
     const inCheck = isInCheck(board, currentPlayer);
     const hasMoves = getAllLegalMoves(currentPlayer).length > 0;
@@ -638,10 +714,12 @@
     lastGameEndType = null;
     castlingRights = { wK: true, wQ: true, bK: true, bQ: true };
     enPassantTarget = null;
+    captures = { w: [], b: [] };
     setBoardInteractive(true);
     hideGameOver();
     createBoard();
     renderBoard();
+    renderCapturedPanel();
   }
 
   const PAWN_TABLE = [
@@ -889,6 +967,10 @@
     difficultyBackBtn = document.getElementById('difficultyBackBtn');
     difficultyChangeBtn = document.getElementById('changeDifficultyBtn');
     difficultyPillEl = document.getElementById('difficultyPill');
+
+    whiteCapturedRowEl = document.getElementById('whiteCapturedRow');
+    blackCapturedRowEl = document.getElementById('blackCapturedRow');
+    materialAdvantageTextEl = document.getElementById('materialAdvantageText');
 
     buildDifficultyOptions();
     bindDifficultyKeys();
