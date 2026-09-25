@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "build": "tailwindcss -i src/input.css -o src/output.css --content \"*.html\""
+    "build": "tailwindcss -i src/input.css -o src/output.css --content \"*.html\" --content \"src/*.js\""
   },
   "dependencies": {
     "@tailwindcss/cli": "^4.3.3",

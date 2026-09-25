@@ -3,137 +3,120 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MindCare — Dementia Support</title>
+  <title>Chess · MindCare</title>
   <link href="./src/output.css" rel="stylesheet">
 </head>
 <body class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-  <nav class="sticky top-0 z-50 backdrop-blur-xl bg-white/70 border-b border-slate-200/60 shadow-sm">
-    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-      <a href="index.html" class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
-          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+  <main class="min-h-screen flex flex-col items-center justify-center px-4 py-8">
+    <div class="w-full max-w-2xl lg:max-w-5xl flex flex-col items-center gap-6">
+      <div class="text-center">
+        <h2 class="text-3xl md:text-4xl font-bold text-slate-800 mb-2 flex items-center justify-center gap-3">
+          <span class="text-4xl md:text-5xl">♞</span>
+          Chess
+        </h2>
+        <p class="text-slate-500">You vs Computer — play as White and capture the Computer's king.</p>
+      </div>
+
+      <div id="statusBar" class="w-full flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 rounded-2xl bg-white shadow-lg shadow-slate-200/60 border border-slate-100">
+        <div class="flex items-center gap-3">
+          <div id="turnDot" class="w-5 h-5 rounded-full bg-white ring-2 ring-slate-300 shadow-inner transition-colors"></div>
+          <div>
+            <p class="text-xs text-slate-400 font-medium uppercase tracking-wide">Current Turn</p>
+            <p id="turnText" class="text-lg font-bold text-slate-800">You</p>
+          </div>
+        </div>
+        <div class="flex flex-col items-center sm:items-end gap-1">
+          <span id="difficultyPill" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700"></span>
+          <div id="statusText" class="text-center sm:text-right">
+            <p class="text-sm text-slate-500">Game in progress</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="relative w-full flex flex-col lg:flex-row items-center lg:items-start justify-center gap-5 lg:gap-6">
+        <div id="boardContainer" class="relative shrink-0 rounded-2xl sm:rounded-3xl p-2 sm:p-3 md:p-4 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 shadow-2xl shadow-slate-900/40 ring-4 ring-slate-950">
+          <div id="board" class="grid grid-cols-8 grid-rows-8 aspect-square w-[min(85vw,85vh,560px)] rounded-lg sm:rounded-xl overflow-hidden bg-black border-2 border-slate-950"></div>
+        </div>
+
+        <aside id="capturedPanel" class="w-full lg:w-64 shrink-0 flex flex-col gap-4 p-5 sm:p-6 rounded-2xl bg-white shadow-lg shadow-slate-200/60 border border-slate-100" aria-label="Captured pieces and material advantage">
+          <h3 class="text-center text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-500">Captured Pieces</h3>
+
+          <section aria-label="White captured pieces">
+            <h4 class="text-xs font-medium text-slate-400 uppercase tracking-wide">White captured</h4>
+            <div id="whiteCapturedRow" class="mt-1.5 min-h-8 flex flex-wrap items-center gap-x-0.5 gap-y-1" aria-live="polite"></div>
+          </section>
+
+          <section aria-label="Black captured pieces">
+            <h4 class="text-xs font-medium text-slate-400 uppercase tracking-wide">Black captured</h4>
+            <div id="blackCapturedRow" class="mt-1.5 min-h-8 flex flex-wrap items-center gap-x-0.5 gap-y-1" aria-live="polite"></div>
+          </section>
+
+          <div class="pt-3 mt-3 border-t border-slate-100 text-center" aria-live="polite" aria-atomic="true">
+            <p class="text-xs font-medium text-slate-400 uppercase tracking-wide">Material Advantage</p>
+            <p id="materialAdvantageText" class="mt-1 text-lg sm:text-xl font-bold text-slate-800">Even</p>
+          </div>
+        </aside>
+      </div>
+
+      <div class="flex flex-wrap gap-3 justify-center">
+        <button id="newGameBtn" class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-br from-indigo-600 to-blue-600 text-white font-semibold shadow-lg shadow-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/40 hover:-translate-y-0.5 active:translate-y-0 transition-all">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
           </svg>
-        </div>
-        <div>
-          <h1 class="text-xl font-bold text-slate-800">MindCare</h1>
-          <p class="text-xs text-slate-500">Dementia Support Platform</p>
-        </div>
-      </a>
-      <div class="hidden md:flex items-center gap-2">
-        <a href="#games" class="px-4 py-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 transition font-medium">Games</a>
-        <a href="#about" class="px-4 py-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 transition font-medium">About</a>
-        <a href="#contact" class="px-4 py-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 transition font-medium">Contact</a>
+          New Game
+        </button>
+        <button id="changeDifficultyBtn" class="hidden inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-white border-2 border-slate-200 text-slate-600 font-semibold hover:bg-slate-50 hover:border-slate-300 shadow-sm transition-all">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+          </svg>
+          Change Difficulty
+        </button>
+      </div>
+
+      <div class="w-full max-w-md text-center px-4">
+<p class="text-xs text-slate-400 leading-relaxed">
+  💡 Tip: You play the White pieces on the bottom. Click a piece to see where it can move (green dots). Red rings mark pieces you can capture. The Computer plays Black and moves automatically.
+</p>
       </div>
     </div>
-  </nav>
-
-  <main class="max-w-6xl mx-auto px-4 sm:px-6 py-12">
-    <section class="mb-16">
-      <div class="rounded-3xl bg-gradient-to-br from-indigo-600 via-blue-600 to-sky-500 p-8 md:p-12 text-white shadow-2xl shadow-indigo-600/20 relative overflow-hidden">
-        <div class="absolute -top-20 -right-20 w-80 h-80 bg-white/10 rounded-full blur-3xl"></div>
-        <div class="absolute -bottom-20 -left-20 w-80 h-80 bg-white/10 rounded-full blur-3xl"></div>
-        <div class="relative">
-          <h2 class="text-3xl md:text-5xl font-bold mb-4 tracking-tight">Welcome Back 👋</h2>
-          <p class="text-lg md:text-xl text-blue-100 mb-8 max-w-2xl leading-relaxed">Train your mind with gentle, engaging games designed for cognitive wellbeing. Take your time and enjoy the process.</p>
-          <div class="flex flex-wrap gap-3">
-            <a href="#games" class="px-6 py-3 bg-white text-indigo-700 rounded-xl font-semibold shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all">
-              Explore Games
-            </a>
-            <a href="#about" class="px-6 py-3 bg-white/15 backdrop-blur text-white rounded-xl font-semibold border border-white/20 hover:bg-white/25 transition">
-              Learn More
-            </a>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section id="games" class="mb-16">
-      <div class="flex items-end justify-between mb-8">
-        <div>
-          <h3 class="text-2xl md:text-3xl font-bold text-slate-800 mb-2">Memory Games</h3>
-          <p class="text-slate-500">Choose a game to start playing. Every move counts.</p>
-        </div>
-      </div>
-
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        <a href="chess.html" class="group block rounded-2xl bg-white shadow-lg shadow-slate-200/60 hover:shadow-2xl hover:shadow-indigo-500/15 transition-all duration-300 overflow-hidden border border-slate-100 hover:-translate-y-1">
-          <div class="h-48 bg-gradient-to-br from-amber-100 via-orange-100 to-rose-100 flex items-center justify-center relative overflow-hidden">
-            <div class="absolute top-6 left-1/2 -translate-x-1/2 w-36 h-36 grid grid-cols-8 grid-rows-8 rounded-md overflow-hidden shadow-2xl ring-4 ring-white/60">
-              <div class="bg-[#F0D9B5]"></div><div class="bg-[#B58863]"></div><div class="bg-[#F0D9B5]"></div><div class="bg-[#B58863]"></div><div class="bg-[#F0D9B5]"></div><div class="bg-[#B58863]"></div><div class="bg-[#F0D9B5]"></div><div class="bg-[#B58863]"></div>
-              <div class="bg-[#B58863]"></div><div class="bg-[#F0D9B5]"></div><div class="bg-[#B58863]"></div><div class="bg-[#F0D9B5]"></div><div class="bg-[#B58863]"></div><div class="bg-[#F0D9B5]"></div><div class="bg-[#B58863]"></div><div class="bg-[#F0D9B5]"></div>
-              <div class="bg-[#F0D9B5]"></div><div class="bg-[#B58863]"></div><div class="bg-[#F0D9B5]"></div><div class="bg-[#B58863]"></div><div class="bg-[#F0D9B5]"></div><div class="bg-[#B58863]"></div><div class="bg-[#F0D9B5]"></div><div class="bg-[#B58863]"></div>
-              <div class="bg-[#B58863]"></div><div class="bg-[#F0D9B5]"></div><div class="bg-[#B58863]"></div><div class="bg-[#F0D9B5]"></div><div class="bg-[#B58863]"></div><div class="bg-[#F0D9B5]"></div><div class="bg-[#B58863]"></div><div class="bg-[#F0D9B5]"></div>
-              <div class="bg-[#F0D9B5]"></div><div class="bg-[#B58863]"></div><div class="bg-[#F0D9B5]"></div><div class="bg-[#B58863]"></div><div class="bg-[#F0D9B5]"></div><div class="bg-[#B58863]"></div><div class="bg-[#F0D9B5]"></div><div class="bg-[#B58863]"></div>
-              <div class="bg-[#B58863]"></div><div class="bg-[#F0D9B5]"></div><div class="bg-[#B58863]"></div><div class="bg-[#F0D9B5]"></div><div class="bg-[#B58863]"></div><div class="bg-[#F0D9B5]"></div><div class="bg-[#B58863]"></div><div class="bg-[#F0D9B5]"></div>
-              <div class="bg-[#F0D9B5]"></div><div class="bg-[#B58863]"></div><div class="bg-[#F0D9B5]"></div><div class="bg-[#B58863]"></div><div class="bg-[#F0D9B5]"></div><div class="bg-[#B58863]"></div><div class="bg-[#F0D9B5]"></div><div class="bg-[#B58863]"></div>
-              <div class="bg-[#B58863]"></div><div class="bg-[#F0D9B5]"></div><div class="bg-[#B58863]"></div><div class="bg-[#F0D9B5]"></div><div class="bg-[#B58863]"></div><div class="bg-[#F0D9B5]"></div><div class="bg-[#B58863]"></div><div class="bg-[#F0D9B5]"></div>
-            </div>
-            <div class="absolute top-2 right-3 px-3 py-1 rounded-full bg-emerald-500 text-white text-xs font-bold shadow-lg">NEW</div>
-          </div>
-          <div class="p-6">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-2xl">♟️</span>
-              <h4 class="text-xl font-bold text-slate-800 group-hover:text-indigo-600 transition">Chess</h4>
-            </div>
-            <p class="text-slate-500 mb-4 text-sm leading-relaxed">A classic two-player strategy game. Take turns, plan your moves, and capture the opponent's king.</p>
-            <div class="flex items-center justify-between">
-              <div class="flex gap-1.5">
-                <span class="px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 text-xs font-medium">Strategy</span>
-                <span class="px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 text-xs font-medium">2 Players</span>
-              </div>
-              <span class="text-indigo-600 font-semibold text-sm group-hover:translate-x-1 transition-transform">Play →</span>
-            </div>
-          </div>
-        </a>
-
-        <div class="rounded-2xl bg-white shadow-lg shadow-slate-200/60 border border-slate-100 opacity-70">
-          <div class="h-48 bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center">
-            <span class="text-5xl">🧠</span>
-          </div>
-          <div class="p-6">
-            <h4 class="text-xl font-bold text-slate-400 mb-2">Memory Match</h4>
-            <p class="text-slate-400 mb-4 text-sm">Coming soon — flip and match pairs of cards.</p>
-            <span class="px-3 py-1 rounded-full bg-slate-100 text-slate-400 text-xs font-medium">Soon</span>
-          </div>
-        </div>
-
-        <div class="rounded-2xl bg-white shadow-lg shadow-slate-200/60 border border-slate-100 opacity-70">
-          <div class="h-48 bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center">
-            <span class="text-5xl">🔢</span>
-          </div>
-          <div class="p-6">
-            <h4 class="text-xl font-bold text-slate-400 mb-2">Number Grid</h4>
-            <p class="text-slate-400 mb-4 text-sm">Coming soon — find and tap numbers in order.</p>
-            <span class="px-3 py-1 rounded-full bg-slate-100 text-slate-400 text-xs font-medium">Soon</span>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section id="about" class="mb-16">
-      <div class="grid md:grid-cols-3 gap-6">
-        <div class="p-6 rounded-2xl bg-white border border-slate-100 shadow-lg shadow-slate-200/50">
-          <div class="w-12 h-12 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center mb-4 text-xl">🎯</div>
-          <h5 class="font-bold text-slate-800 mb-2">Gentle &amp; Calm</h5>
-          <p class="text-slate-500 text-sm leading-relaxed">No timers, no pressure. Play at your own pace and enjoy the experience.</p>
-        </div>
-        <div class="p-6 rounded-2xl bg-white border border-slate-100 shadow-lg shadow-slate-200/50">
-          <div class="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center mb-4 text-xl">👁️</div>
-          <h5 class="font-bold text-slate-800 mb-2">High Contrast</h5>
-          <p class="text-slate-500 text-sm leading-relaxed">Large pieces, clear colors, and bold highlights for easy readability.</p>
-        </div>
-        <div class="p-6 rounded-2xl bg-white border border-slate-100 shadow-lg shadow-slate-200/50">
-          <div class="w-12 h-12 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center mb-4 text-xl">🧩</div>
-          <h5 class="font-bold text-slate-800 mb-2">Cognitive Care</h5>
-          <p class="text-slate-500 text-sm leading-relaxed">Games selected to stimulate memory, focus, and strategic thinking.</p>
-        </div>
-      </div>
-    </section>
-
-    <footer id="contact" class="text-center text-slate-400 text-sm py-8 border-t border-slate-200">
-      <p>Made with ❤️ for the SIH Hackathon · MindCare 2026</p>
-    </footer>
   </main>
+
+  <div id="gameOverModal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+    <div class="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center border border-slate-100">
+      <div id="modalIcon" class="text-6xl mb-4">♚</div>
+      <h3 id="modalTitle" class="text-2xl font-bold text-slate-800 mb-2">Game Over</h3>
+      <p id="modalMessage" class="text-slate-500 mb-6">Checkmate!</p>
+      <button id="modalPlayAgain" class="w-full inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-br from-indigo-600 to-blue-600 text-white font-semibold shadow-lg shadow-indigo-500/30 hover:shadow-xl transition">
+        Play Again
+      </button>
+      <button id="modalChangeDifficulty" class="w-full mt-3 inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-white border-2 border-slate-200 text-slate-600 font-semibold hover:bg-slate-50 hover:border-slate-300 shadow-sm transition">
+        Change Difficulty
+      </button>
+    </div>
+  </div>
+
+  <div id="difficultyOverlay" class="fixed inset-0 z-[200] hidden items-center justify-center p-4 overflow-y-auto bg-slate-900/70 backdrop-blur-sm">
+    <div class="w-full max-w-md my-auto">
+      <div class="bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-100">
+        <div class="text-center mb-6">
+          <p class="text-5xl mb-2">♞</p>
+          <h3 class="text-2xl sm:text-3xl font-bold text-slate-800">Choose Your Difficulty</h3>
+          <p class="text-slate-500 mt-2 text-sm sm:text-base">Select how challenging you want today's game to be.</p>
+        </div>
+        <div id="difficultyOptions" role="radiogroup" aria-label="Choose difficulty" class="flex flex-col gap-3"></div>
+        <div class="flex flex-col gap-3 mt-6">
+          <button id="difficultyStartBtn" disabled class="w-full inline-flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-gradient-to-br from-indigo-600 to-blue-600 text-white text-lg font-semibold shadow-lg shadow-indigo-500/30 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:shadow-lg focus:outline-none focus-visible:ring-4 focus-visible:ring-indigo-300">
+            Start Game
+          </button>
+          <button id="difficultyBackBtn" class="w-full inline-flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-white border-2 border-slate-200 text-slate-600 text-lg font-semibold hover:bg-slate-50 hover:border-slate-300 transition-all focus:outline-none focus-visible:ring-4 focus-visible:ring-indigo-300">
+            Back
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="./src/chess.js"></script>
 </body>
 </html>
