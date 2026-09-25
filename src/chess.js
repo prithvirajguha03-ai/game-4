@@ -8,6 +8,27 @@
 
   const PIECE_VALUES = { 'P': 1, 'N': 3, 'B': 3, 'R': 5, 'Q': 9, 'K': 0 };
 
+  const BLACK_PAWN_SVG = '<svg viewBox="0 0 100 100" width="0.9em" height="0.9em" aria-hidden="true" focusable="false" style="display:block">'
+    + '<g fill="#0f172a">'
+    + '<circle cx="50" cy="21" r="12.5"/>'
+    + '<rect x="44.5" y="29" width="11" height="13" rx="2.5"/>'
+    + '<rect x="32" y="39" width="36" height="11" rx="5.5"/>'
+    + '<path d="M35 47H65c0 13 3.5 23 9 31.5H26C31.5 70 35 60 35 47Z"/>'
+    + '<rect x="14" y="77" width="72" height="13" rx="4"/>'
+    + '</g>'
+    + '<g fill="rgba(255,255,255,0.18)">'
+    + '<ellipse cx="45" cy="15.5" rx="5" ry="3.4" transform="rotate(-20 45 15.5)"/>'
+    + '<rect x="35" y="41" width="30" height="2.6" rx="1.3"/>'
+    + '<path d="M35 47c0 13-3.5 23-9 31.5h5c5.5-8.5 9-18.5 9-31.5Z"/>'
+    + '<rect x="17" y="79" width="66" height="2.4" rx="1.2"/>'
+    + '</g>'
+    + '<rect x="14" y="86.5" width="72" height="3.5" rx="1.75" fill="rgba(0,0,0,0.35)"/>'
+    + '</svg>';
+
+  function pieceContent(piece) {
+    return piece === 'bP' ? BLACK_PAWN_SVG : PIECES[piece];
+  }
+
   let board = [];
   let currentPlayer = 'w';
   let selectedSquare = null;
@@ -16,6 +37,9 @@
   let castlingRights = { wK: true, wQ: true, bK: true, bQ: true };
   let enPassantTarget = null;
   let halfmoveClock = 0;
+  let isAnimating = false;
+  let moveAnimToken = 0;
+  let activeGhosts = [];
 
   const boardEl = document.getElementById('board');
   const turnDotEl = document.getElementById('turnDot');
@@ -346,7 +370,7 @@
         cell.dataset.row = r;
         cell.dataset.col = c;
         const isLight = (r + c) % 2 === 0;
-        const bgClass = isLight ? 'bg-white' : 'bg-slate-900';
+        const bgClass = isLight ? 'bg-white' : 'bg-oak-light';
         cell.className = [
           'relative aspect-square flex items-center justify-center select-none overflow-hidden',
           'focus:outline-none focus:z-10 transition-colors duration-150',
@@ -368,7 +392,7 @@
         const piece = board[r][c];
         const isLight = (r + c) % 2 === 0;
 
-        let baseBg = isLight ? 'bg-white' : 'bg-slate-800';
+        let baseBg = isLight ? 'bg-white' : 'bg-oak-light';
         let extraClasses = 'border border-slate-500/70';
         let overlayHTML = '';
 
@@ -401,7 +425,7 @@
           const stroke = isWhiteP
             ? 'piece-outline-dark'
             : 'piece-outline-light';
-          pieceHTML = `<span class="text-3xl sm:text-4xl md:text-5xl pointer-events-none select-none ${textColor} ${stroke}" style="line-height:1">${PIECES[piece]}</span>`;
+          pieceHTML = `<span class="piece-glyph text-3xl sm:text-4xl md:text-5xl pointer-events-none select-none ${textColor} ${stroke}" style="line-height:1">${pieceContent(piece)}</span>`;
         }
 
         cell.innerHTML = overlayHTML + pieceHTML;
@@ -414,7 +438,7 @@
         const idx = king.r * 8 + king.c;
         const cell = cells[idx];
         if (!cell.classList.contains('ring-red-500')) {
-          cell.classList.add('ring-4', 'ring-red-600', 'ring-inset', 'animate-pulse');
+          cell.classList.add('ring-4', 'ring-red-600', 'ring-inset', 'king-check');
         }
       }
     }
@@ -451,7 +475,7 @@
   }
 
   function onCellClick(e) {
-    if (gameOver) return;
+    if (gameOver || isAnimating) return;
     const cell = e.currentTarget;
     const r = parseInt(cell.dataset.row, 10);
     const c = parseInt(cell.dataset.col, 10);
@@ -489,15 +513,77 @@
     }
   }
 
+  function pieceSpanClasses(piece) {
+    const color = pieceColor(piece);
+    const isWhiteP = color === 'w';
+    const textColor = isWhiteP ? 'text-white' : 'text-slate-900';
+    const stroke = isWhiteP ? 'piece-outline-dark' : 'piece-outline-light';
+    return `text-3xl sm:text-4xl md:text-5xl pointer-events-none select-none ${textColor} ${stroke}`;
+  }
+
+  function spawnGhost(piece, fromCell, toCell) {
+    const rectFrom = fromCell.getBoundingClientRect();
+    const rectTo = toCell.getBoundingClientRect();
+    const ghost = document.createElement('div');
+    ghost.className = 'move-ghost';
+    ghost.style.left = `${rectFrom.left}px`;
+    ghost.style.top = `${rectFrom.top}px`;
+    ghost.style.width = `${rectFrom.width}px`;
+    ghost.style.height = `${rectFrom.height}px`;
+    ghost.innerHTML = `<span class="${pieceSpanClasses(piece)}" style="line-height:1">${pieceContent(piece)}</span>`;
+    document.body.appendChild(ghost);
+    const dx = rectTo.left - rectFrom.left;
+    const dy = rectTo.top - rectFrom.top;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        ghost.style.transform = `translate(${dx}px, ${dy}px)`;
+      });
+    });
+    activeGhosts.push(ghost);
+    return ghost;
+  }
+
+  function hidePiece(cell) {
+    const span = cell.querySelector('.piece-glyph');
+    if (span) span.style.opacity = '0';
+  }
+
+  function clearGhosts() {
+    activeGhosts.forEach(g => g.remove());
+    activeGhosts = [];
+  }
+
   function makeMove(move) {
+    if (isAnimating || gameOver) return;
+
+    const fromR = move.fromR, fromC = move.fromC;
+    const toR = move.toR, toC = move.toC;
+    const movingPiece = board[fromR][fromC];
+
+    const fromCell = boardEl.children[fromR * 8 + fromC];
+    const toCell = boardEl.children[toR * 8 + toC];
+
+    let rookGhost = null;
+    if (move.castle) {
+      const rank = move.toR;
+      const rookFromC = move.castle === 'K' ? 7 : 0;
+      const rookToC = move.castle === 'K' ? 5 : 3;
+      rookGhost = {
+        piece: board[rank][rookFromC],
+        from: boardEl.children[rank * 8 + rookFromC],
+        to: boardEl.children[rank * 8 + rookToC],
+        toCell: boardEl.children[rank * 8 + rookToC]
+      };
+    }
+
     const result = applyMove(board, move, castlingRights, enPassantTarget);
     board = result.board;
     castlingRights = result.castlingRights;
     enPassantTarget = result.enPassant;
 
-    const movingPiece = board[move.toR][move.toC];
-    const captured = move.enPassant ? 'P' : pieceType(board[move.toR][move.toC]);
-    if (pieceType(movingPiece) === 'P' || captured) {
+    const movingPieceAtDest = board[toR][toC];
+    const captured = move.enPassant ? 'P' : pieceType(board[toR][toC]);
+    if (pieceType(movingPieceAtDest) === 'P' || captured) {
       halfmoveClock = 0;
     } else {
       halfmoveClock++;
@@ -506,19 +592,43 @@
     currentPlayer = currentPlayer === 'w' ? 'b' : 'w';
     selectedSquare = null;
     legalMovesCache = [];
-    renderBoard();
 
     const inCheck = isInCheck(board, currentPlayer);
     const allMoves = getAllLegalMoves(currentPlayer);
+    const gameOverType = allMoves.length === 0 ? (inCheck ? 'checkmate' : 'stalemate') : null;
 
-    if (allMoves.length === 0) {
-      gameOver = true;
-      if (inCheck) {
-        showGameOver('checkmate');
-      } else {
-        showGameOver('stalemate');
+    isAnimating = true;
+    moveAnimToken++;
+    const token = moveAnimToken;
+
+    renderBoard();
+
+    hidePiece(toCell);
+    if (rookGhost) hidePiece(rookGhost.toCell);
+
+    const ghosts = [spawnGhost(movingPiece, fromCell, toCell)];
+    if (rookGhost) ghosts.push(spawnGhost(rookGhost.piece, rookGhost.from, rookGhost.to));
+
+    let finished = false;
+    const finish = () => {
+      if (finished || token !== moveAnimToken) return;
+      finished = true;
+      clearGhosts();
+      isAnimating = false;
+      renderBoard();
+      if (gameOverType) {
+        gameOver = true;
+        showGameOver(gameOverType);
       }
-    }
+    };
+
+    const fallbackTimer = setTimeout(finish, 320);
+    ghosts.forEach(g => g.addEventListener('transitionend', () => {
+      if (!finished) {
+        clearTimeout(fallbackTimer);
+        finish();
+      }
+    }));
   }
 
   function showGameOver(type) {
@@ -544,6 +654,9 @@
   }
 
   function resetGame() {
+    moveAnimToken++;
+    clearGhosts();
+    isAnimating = false;
     board = initialBoard();
     currentPlayer = 'w';
     selectedSquare = null;
