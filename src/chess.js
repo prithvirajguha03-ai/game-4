@@ -2,9 +2,14 @@
   'use strict';
 
   const PIECES = {
-    'wK': '♔', 'wQ': '♕', 'wR': '♖', 'wB': '♗', 'wN': '♘', 'wP': '♙',
-    'bK': '♚', 'bQ': '♛', 'bR': '♜', 'bB': '♝', 'bN': '♞', 'bP': '♟'
+    'wK': '♔', 'wQ': '♕', 'wR': '♖', 'wB': '♗', 'wN': '♘',
+    'bK': '♚', 'bQ': '♛', 'bR': '♜', 'bB': '♝', 'bN': '♞'
   };
+
+  // Both pawns share ONE glyph so they can never drift apart. U+265F (♟) is the
+  // only solid/filled glyph in the set; it falls through to a fallback font that
+  // draws it shaded and 3D, unlike its flat outline siblings (♚♛♜♝♞).
+  PIECES.wP = PIECES.bP = '♙';
 
   const PIECE_VALUES = { 'P': 1, 'N': 3, 'B': 3, 'R': 5, 'Q': 9, 'K': 0 };
 
